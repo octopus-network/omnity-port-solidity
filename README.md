@@ -50,16 +50,17 @@ The `command` in `directive` has the following enum options:
 | AddToken | settlement_chain_id | btc, eth, etc.
 | | tokenId | The token id of the token to be added.
 | | tokenMetadata | The ERC-20 token metadata of the token to be added.
+| | tokenContractAddress | The address of the token contract of the token to be added.
 | UpdateFee | settlement_chain_id | btc, eth, etc.
 | | feeType | Transaction fee type. `Transport` or `Redeem`.
-| | feeAmount | The amount of the fee for token transport/redeem of corresponding settlement chain (in `ETH`).
+| | feeAmount | The amount of the fee for token transport/redeem of corresponding settlement chain is specified in `uint256`, ensuring maximum precision.
 | Suspend | N/A | -
 | Reinstate | N/A | -
 
 The functions of the `command`s are:
 
 * `AddSettlementChain`: Add a settlement chain to the `Omnity port` contract.
-* `AddToken`: Add a token to the `Omnity port` contract. A token contract will be deployed automatically, the address of the token contract will be stored.
+* `AddToken`: Add a token to the `Omnity port` contract. If the param `tokenContractAddress` is not specified, a token contract will be deployed automatically, the address of the token contract will be stored.
 * `UpdateFee`: Update the fee for token transport/redeem of corresponding settlement chain.
 * `Suspend`: Suspend the `Omnity port` contract. No further directive will be executed.
 * `Reinstate`: Reinstate the `Omnity port` contract.
@@ -83,7 +84,7 @@ Only the `minterAddress` can call function `previlegedExecuteDirective` to execu
 The `Omnity port` contract will have a function `mintToken` to mint tokens. It has the following parameters:
 
 * `tokenId`: The token id of the token to be minted.
-* `receiver`: The receiver of the tokens to be minted. Which is an account id in NEAR protocol.
+* `receiver`: The receiver of the tokens to be minted. Which is an ETH address.
 * `amount`: The amount of the tokens to be minted.
 * `ticketId`: The unique id of the mint request. To prevent replay attack.
 * `memo`: Optional. If the token is coming from a transport request (from another execution chain), this parameter will be the memo of the transport request. Otherwise, it will be empty.
@@ -98,7 +99,7 @@ Any account can call function `mintToken` to mint tokens. This function will che
 The `Omnity port` contract will have a function `privilegedMintToken` to mint tokens. It has the following parameters:
 
 * `tokenId`: The token id of the token to be minted.
-* `receiver`: The receiver of the tokens to be minted. Which is an account id in NEAR protocol.
+* `receiver`: The receiver of the tokens to be minted. Which is an ETH address.
 * `amount`: The amount of the tokens to be minted.
 * `ticketId`: The unique id of the mint request. To prevent replay attack.
 * `memo`: Optional. If the token is coming from a transport request (from another execution chain), this parameter will be the memo of the transport request. Otherwise, it will be empty.
@@ -115,6 +116,7 @@ Any token holder can call function `transportToken` to transport tokens to anoth
 * `tokenId`: The token id of the token to be transported.
 * `receiver`: The receiver of the tokens to be transported. Which is an address or identifier in the execution chain.
 * `amount`: The amount of the tokens to be transported.
+* `channelId`: Optional. The channel ID to which a portion of the fee may be distributed.
 * `memo`: Optional. The extra information to transport to corresponding execution chain.
 
 The caller must attach the fee (in `ETH`) for the transport request. The necessary fee for certain settlement chain is managed in this contract.
