@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract TokenContract is ERC20 {
     address private _portContract;
     uint8 private _decimals;
-
     constructor(
         address portContract_,
         string memory name_,
@@ -42,7 +41,7 @@ contract TokenContract is ERC20 {
 
 contract OmnityPortContract {
     event TokenMinted(
-        bytes32 tokenId,
+        string tokenId,
         address receiver,
         uint256 amount,
         uint256 ticketId,
@@ -50,8 +49,8 @@ contract OmnityPortContract {
     );
 
     event TokenTransportRequested(
-        bytes32 dstChainId,
-        bytes32 tokenId,
+        string dstChainId,
+        string tokenId,
         string receiver,
         uint256 amount,
         string channelId,
@@ -59,14 +58,18 @@ contract OmnityPortContract {
     );
 
     event TokenBurned(
-        bytes32 tokenId,
+        string tokenId,
         string receiver,
         uint256 amount,
         string channelId
     );
 
+    event DirectiveExecuted(
+        uint256 seq
+    );
+
     enum Command {
-        AddSettlementChain,
+        AddChain,
         AddToken,
         UpdateFee,
         Suspend,
@@ -80,17 +83,18 @@ contract OmnityPortContract {
 
     bytes public minterPubkey;
     address public minterAddress;
-    bytes32[] public settlementChains;
     uint256 public lastExecutedSequence;
+    string public omnity_chain_id;  
     bool public suspended;
+    mapping(string => bool) public counterpartiesChains; // chainid -> suspended: true/unsuspended: false;
+    mapping(string => string) public tokenIdToSettlementChain;
+    mapping(string => address) public tokenIdToContractAddress;
 
-    mapping(bytes32 => bytes32) public tokenIdToSettlementChain;
-    mapping(bytes32 => address) public tokenIdToContractAddress;
+    mapping(string => uint256) transportFeeOf;
+    mapping(string => uint256) redeemFeeOf;
 
-    mapping(bytes32 => uint256) transportFeeOf;
-    mapping(bytes32 => uint256) redeemFeeOf;
-
-    constructor(bytes memory _minterPubkey, address _minterAddress) {
+    constructor(bytes memory _minterPubkey, address _minterAddress, string memory _chain_id) {
+        omnity_chain_id = _chain_id;
         minterPubkey = _minterPubkey;
         minterAddress = _minterAddress;
         suspended = false;
@@ -119,7 +123,7 @@ contract OmnityPortContract {
     }
 
     function mintToken(
-        bytes32 tokenId,
+        string memory tokenId,
         address receiver,
         uint256 amount,
         uint256 ticketId,
@@ -135,7 +139,7 @@ contract OmnityPortContract {
     }
 
     function privilegedMintToken(
-        bytes32 tokenId,
+        string memory tokenId,
         address receiver,
         uint256 amount,
         uint256 ticketId,
@@ -147,8 +151,8 @@ contract OmnityPortContract {
     }
 
     function transportToken(
-        bytes32 dstChainId,
-        bytes32 tokenId,
+        string memory dstChainId,
+        string memory tokenId,
         string memory receiver,
         uint256 amount,
         string memory channelId,
@@ -173,7 +177,7 @@ contract OmnityPortContract {
     }
 
     function redeemToken(
-        bytes32 tokenId,
+        string memory tokenId,
         string memory receiver,
         uint256 amount,
         string memory channelId
@@ -203,28 +207,28 @@ contract OmnityPortContract {
         );
         require(lastExecutedSequence == sequence, "Invalid sequence");
 
-        if (command == Command.AddSettlementChain) {
-            bytes32 settlementChainId = abi.decode(params, (bytes32));
-            settlementChains.push(settlementChainId);
+        if (command == Command.AddChain) {
+            string memory settlementChainId = abi.decode(params, (string));
+            counterpartiesChains[settlementChainId] = false;
         } else if (command == Command.AddToken) {
             (
-                bytes32 settlementChainId,
-                bytes32 tokenId,
+                string memory settlementChainId,
+                string memory tokenId,
                 address contractAddress,
-                bytes32 name,
-                bytes32 symbol,
+                string memory name,
+                string memory symbol,
                 uint8 decimals
             ) = abi.decode(
                     params,
-                    (bytes32, bytes32, address, bytes32, bytes32, uint8)
+                    (string, string, address, string, string, uint8)
                 );
 
             if (contractAddress == address(0)) {
                 contractAddress = address(
                     new TokenContract(
                         address(this),
-                        string(abi.encodePacked(name)),
-                        string(abi.encodePacked(symbol)),
+                        string(name),
+                        string(symbol),
                         decimals
                     )
                 );
@@ -233,10 +237,10 @@ contract OmnityPortContract {
             tokenIdToSettlementChain[tokenId] = settlementChainId;
         } else if (command == Command.UpdateFee) {
             (
-                bytes32 settlementChainId,
+                string memory settlementChainId,
                 FeeType feeType,
                 uint256 feeAmount
-            ) = abi.decode(params, (bytes32, FeeType, uint256));
+            ) = abi.decode(params, (string, FeeType, uint256));
 
             if (feeType == FeeType.Redeem) {
                 redeemFeeOf[settlementChainId] = feeAmount;
@@ -244,7 +248,16 @@ contract OmnityPortContract {
                 transportFeeOf[settlementChainId] = feeAmount;
             }
         } else if (command == Command.Suspend) {
-            suspended = true;
+            (
+                string memory chain_id
+            ) = abi.decode(params, (string));
+            string memory  om_chainid =  omnity_chain_id;
+            if (keccak256( abi.encodePacked( chain_id)) == keccak256(abi.encodePacked( om_chainid))){
+                suspended = true;
+            } else if (counterpartiesChains[chain_id] == false) {
+                counterpartiesChains[chain_id] = true;
+            }
+            
         } else if (command == Command.Reinstate) {
             suspended = false;
         }
