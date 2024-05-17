@@ -83,6 +83,7 @@ contract OmnityPortContract {
 
     bytes public minterPubkey;
     address public minterAddress;
+    address public owner;
     uint256 public lastExecutedSequence;
     string public omnity_chain_id;  
     bool public suspended;
@@ -98,8 +99,17 @@ contract OmnityPortContract {
         minterPubkey = _minterPubkey;
         minterAddress = _minterAddress;
         suspended = false;
+
     }
 
+    function setMinterAddress(address m) external {
+        minterAddress = m;
+    }
+
+    function setMinterPubkey(bytes memory m) external {
+        minterPubkey = m;
+    }
+    
     function executeDirective(bytes memory directiveBytes) external {
         (
             Command command,
@@ -108,7 +118,6 @@ contract OmnityPortContract {
             bytes memory params
         ) = abi.decode(directiveBytes, (Command, uint256, uint256, bytes));
         _assertSignatureLegal(directiveBytes, abi.encodePacked(signature));
-
         _executeDirective(command, sequence, params);
     }
 
@@ -118,7 +127,6 @@ contract OmnityPortContract {
             directiveBytes,
             (Command, uint256, bytes)
         );
-
         _executeDirective(command, sequence, params);
     }
 
@@ -227,8 +235,8 @@ contract OmnityPortContract {
                 contractAddress = address(
                     new TokenContract(
                         address(this),
-                        string(name),
-                        string(symbol),
+                        name,
+                        symbol,
                         decimals
                     )
                 );
