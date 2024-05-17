@@ -256,11 +256,10 @@ contract OmnityPortContract {
                 transportFeeOf[settlementChainId] = feeAmount;
             }
         } else if (command == Command.Suspend) {
-            (
-                string memory chain_id
-            ) = abi.decode(params, (string));
-            string memory  om_chainid =  omnity_chain_id;
-            if (keccak256( abi.encodePacked( chain_id)) == keccak256(abi.encodePacked( om_chainid))){
+            string memory chain_id = abi.decode(params, (string));
+            bytes32 h1 = keccak256(abi.encodePacked(omnity_chain_id));
+            bytes32 h2 = keccak256(abi.encodePacked(chain_id));
+            if (h1 == h2){
                 suspended = true;
             } else if (counterpartiesChains[chain_id] == false) {
                 counterpartiesChains[chain_id] = true;
