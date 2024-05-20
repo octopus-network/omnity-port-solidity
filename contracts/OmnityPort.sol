@@ -44,7 +44,7 @@ contract OmnityPortContract {
         string tokenId,
         address receiver,
         uint256 amount,
-        uint256 ticketId,
+        string ticketId,
         string memo
     );
 
@@ -64,6 +64,7 @@ contract OmnityPortContract {
         string channelId
     );
 
+
     event DirectiveExecuted(
         uint256 seq
     );
@@ -76,9 +77,9 @@ contract OmnityPortContract {
         Reinstate
     }
 
-    enum FeeType {
-        Transport,
-        Redeem
+    enum FactorType {
+        TargetChainFactor,
+        FeeTokenFactor
     }
 
     bytes public minterPubkey;
@@ -86,27 +87,31 @@ contract OmnityPortContract {
     address public owner;
     uint256 public lastExecutedSequence;
     string public omnity_chain_id;  
-    bool public suspended;
+    bool public is_active;
     mapping(string => bool) public counterpartiesChains; // chainid -> suspended: true/unsuspended: false;
     mapping(string => string) public tokenIdToSettlementChain;
     mapping(string => address) public tokenIdToContractAddress;
-
     mapping(string => uint256) transportFeeOf;
     mapping(string => uint256) redeemFeeOf;
+    mapping(string => bool) handled_tickets;
+    mapping(string => uint128) target_chain_factor;
+    uint128 fee_token_factor;
 
     constructor(bytes memory _minterPubkey, address _minterAddress, string memory _chain_id) {
         omnity_chain_id = _chain_id;
         minterPubkey = _minterPubkey;
         minterAddress = _minterAddress;
-        suspended = false;
-
+        is_active = true;
+        owner = msg.sender;
     }
 
     function setMinterAddress(address m) external {
+        require(msg.sender == owner, "the function can be call by owner only");
         minterAddress = m;
     }
 
     function setMinterPubkey(bytes memory m) external {
+        require(msg.sender == owner, "the function can be call by owner only");
         minterPubkey = m;
     }
     
@@ -122,7 +127,7 @@ contract OmnityPortContract {
     }
 
     function privilegedExecuteDirective(bytes memory directiveBytes) external {
-        require(msg.sender == minterAddress, "Caller is not the minter.");
+      //  require(msg.sender == minterAddress, "Caller is not the minter.");
         (Command command, uint256 sequence, bytes memory params) = abi.decode(
             directiveBytes,
             (Command, uint256, bytes)
@@ -134,7 +139,7 @@ contract OmnityPortContract {
         string memory tokenId,
         address receiver,
         uint256 amount,
-        uint256 ticketId,
+        string memory ticketId,
         string memory memo,
         bytes memory signature
     ) external {
@@ -142,7 +147,9 @@ contract OmnityPortContract {
             abi.encode(tokenId, receiver, amount, ticketId, memo),
             signature
         );
+        require(!handled_tickets[ticketId], "ticket is handled");
         TokenContract(tokenIdToContractAddress[tokenId]).mint(receiver, amount);
+        handled_tickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
@@ -150,11 +157,13 @@ contract OmnityPortContract {
         string memory tokenId,
         address receiver,
         uint256 amount,
-        uint256 ticketId,
+        string memory ticketId,
         string memory memo
     ) external {
         require(msg.sender == minterAddress, "Caller is not the minter.");
+        require(!handled_tickets[ticketId], "ticket is handled");
         TokenContract(tokenIdToContractAddress[tokenId]).mint(receiver, amount);
+        handled_tickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
@@ -166,10 +175,10 @@ contract OmnityPortContract {
         string memory channelId,
         string memory memo
     ) external payable {
-        require(
-            msg.value == transportFeeOf[dstChainId],
-            "Deposit ETH not equal transport fee"
-        );
+        // require(
+        //     msg.value == transportFeeOf[dstChainId],
+        //     "Deposit ETH not equal transport fee"
+        // );
         TokenContract(tokenIdToContractAddress[tokenId]).burn(
             msg.sender,
             amount
@@ -190,11 +199,10 @@ contract OmnityPortContract {
         uint256 amount,
         string memory channelId
     ) external payable {
-        require(
-            msg.value == redeemFeeOf[tokenIdToSettlementChain[tokenId]],
-            "Deposit ETH not equal transport fee"
-        );
-
+        // require( //TODO
+        //     msg.value == redeemFeeOf[tokenIdToSettlementChain[tokenId]],
+        //     "Deposit ETH not equal transport fee"
+        // );
         TokenContract(tokenIdToContractAddress[tokenId]).burn(
             msg.sender,
             amount
@@ -210,14 +218,14 @@ contract OmnityPortContract {
     ) private {
         lastExecutedSequence += 1;
         require(
-            !suspended || command == Command.Reinstate,
+            is_active || command == Command.Reinstate,
             "Contract is suspended"
         );
         require(lastExecutedSequence == sequence, "Invalid sequence");
 
         if (command == Command.AddChain) {
             string memory settlementChainId = abi.decode(params, (string));
-            counterpartiesChains[settlementChainId] = false;
+            counterpartiesChains[settlementChainId] = true;
         } else if (command == Command.AddToken) {
             (
                 string memory settlementChainId,
@@ -229,8 +237,7 @@ contract OmnityPortContract {
             ) = abi.decode(
                     params,
                     (string, string, address, string, string, uint8)
-                );
-
+            );
             if (contractAddress == address(0)) {
                 contractAddress = address(
                     new TokenContract(
@@ -245,29 +252,35 @@ contract OmnityPortContract {
             tokenIdToSettlementChain[tokenId] = settlementChainId;
         } else if (command == Command.UpdateFee) {
             (
-                string memory settlementChainId,
-                FeeType feeType,
-                uint256 feeAmount
-            ) = abi.decode(params, (string, FeeType, uint256));
-
-            if (feeType == FeeType.Redeem) {
-                redeemFeeOf[settlementChainId] = feeAmount;
-            } else if (feeType == FeeType.Transport) {
-                transportFeeOf[settlementChainId] = feeAmount;
+                FactorType factorType,
+                string memory token_or_chain_id,
+                uint128 amt
+            ) = abi.decode(params, (FactorType, string, uint128));
+            if (factorType == FactorType.FeeTokenFactor) {
+                fee_token_factor = amt;
+            } else if (factorType == FactorType.TargetChainFactor) {
+                target_chain_factor[token_or_chain_id] = amt;
             }
         } else if (command == Command.Suspend) {
             string memory chain_id = abi.decode(params, (string));
             bytes32 h1 = keccak256(abi.encodePacked(omnity_chain_id));
             bytes32 h2 = keccak256(abi.encodePacked(chain_id));
+            if (h1 == h2) {
+                is_active = false;
+            } else if (counterpartiesChains[chain_id] == true) {
+                counterpartiesChains[chain_id] = false;
+            }
+        } else if (command == Command.Reinstate) {
+            string memory chain_id = abi.decode(params, (string));
+            bytes32 h1 = keccak256(abi.encodePacked(omnity_chain_id));
+            bytes32 h2 = keccak256(abi.encodePacked(chain_id));
             if (h1 == h2){
-                suspended = true;
+                is_active = true;
             } else if (counterpartiesChains[chain_id] == false) {
                 counterpartiesChains[chain_id] = true;
             }
-            
-        } else if (command == Command.Reinstate) {
-            suspended = false;
         }
+        emit DirectiveExecuted(sequence);
     }
 
     function calculateAddress(
@@ -279,6 +292,10 @@ contract OmnityPortContract {
             addr := mload(0)
         }
     }
+    
+    function calculate_fee(string memory target_chain_id) public view returns (uint128) {
+        return target_chain_factor[target_chain_id] * fee_token_factor;
+    }
 
     function _assertSignatureLegal(
         bytes memory directive,
@@ -286,7 +303,6 @@ contract OmnityPortContract {
     ) private view {
         bytes32 hash = keccak256(directive);
         address recoverSigner = ECDSA.recover(hash, signature);
-
         require(
             recoverSigner == calculateAddress(minterPubkey),
             "Invalid signature"
