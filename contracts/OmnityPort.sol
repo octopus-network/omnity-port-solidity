@@ -93,7 +93,7 @@ contract OmnityPortContract {
         AddToken,
         UpdateFee,
         Suspend,
-        Reinstate,
+        Reinstate
     }
 
     enum FactorType {
@@ -316,12 +316,12 @@ contract OmnityPortContract {
 
     function updateTokenSymbol(string memory token_id, string memory symbol_) public  onlyOwner {
         tokens[token_id].symbol = symbol_;
-        TokenContract(tokens[tokenId].erc20ContractAddr).updateSymbol(symbol_);
+        TokenContract(tokens[token_id].erc20ContractAddr).updateSymbol(symbol_);
     }
 
     function updateTokenName(string memory token_id, string memory name_) public  onlyOwner {
         tokens[token_id].name = name_;
-        TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
+        TokenContract(tokens[token_id].erc20ContractAddr).updateName(name_);
     }
 
     
