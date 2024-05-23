@@ -13,18 +13,17 @@ contract TokenContract is ERC20, Ownable {
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) ERC20(name_, symbol_) Ownable(){
-        
+    ) ERC20(name_, symbol_) Ownable() {
         _decimals = decimals_;
         _symbol = symbol_;
         _name = name_;
     }
 
-    function updateSymbol(string memory  symbol_) public onlyOwner {
+    function updateSymbol(string memory symbol_) public onlyOwner {
         _symbol = symbol_;
     }
 
-    function updateName(string memory  name_) public onlyOwner {
+    function updateName(string memory name_) public onlyOwner {
         _name = name_;
     }
 
@@ -39,7 +38,6 @@ contract TokenContract is ERC20, Ownable {
     function burn(address owner, uint256 amount) public onlyOwner {
         _burn(owner, amount * 10 ** (uint256(decimals())));
     }
-    
 }
 
 contract OmnityPortContract is Ownable {
@@ -59,16 +57,9 @@ contract OmnityPortContract is Ownable {
         string memo
     );
 
-    event TokenBurned(
-        string tokenId,
-        string receiver,
-        uint256 amount
-    );
+    event TokenBurned(string tokenId, string receiver, uint256 amount);
 
-
-    event DirectiveExecuted(
-        uint256 seq
-    );
+    event DirectiveExecuted(uint256 seq);
 
     enum Command {
         AddChain,
@@ -113,13 +104,16 @@ contract OmnityPortContract is Ownable {
      * Override the original function to add chainKeyAddress as a valid sender.
      */
     function _checkOwner() internal view override {
-        require(owner() == _msgSender() || chainKeyAddress == _msgSender(), "Ownable: caller is not the owner");
+        require(
+            owner() == _msgSender() || chainKeyAddress == _msgSender(),
+            "Ownable: caller is not the owner"
+        );
     }
 
-    function setChainKeyAddress(address m) external onlyOwner {    
+    function setChainKeyAddress(address m) external onlyOwner {
         chainKeyAddress = m;
     }
-    
+
     function executeDirective(bytes memory directiveBytes) external {
         (
             Command command,
@@ -131,7 +125,9 @@ contract OmnityPortContract is Ownable {
         _executeDirective(command, sequence, params);
     }
 
-    function privilegedExecuteDirective(bytes memory directiveBytes) external onlyOwner {
+    function privilegedExecuteDirective(
+        bytes memory directiveBytes
+    ) external onlyOwner {
         (Command command, uint256 sequence, bytes memory params) = abi.decode(
             directiveBytes,
             (Command, uint256, bytes)
@@ -179,8 +175,8 @@ contract OmnityPortContract is Ownable {
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
         require(
-             msg.value >= calculateFee(dstChainId),
-             "Deposit fee is less than transport fee"
+            msg.value >= calculateFee(dstChainId),
+            "Deposit fee is less than transport fee"
         );
         TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
@@ -201,9 +197,9 @@ contract OmnityPortContract is Ownable {
         uint256 amount
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
-         require( 
-             msg.value >= calculateFee(tokens[tokenId].settlementChainId),
-             "Deposit fee is less than transport fee"
+        require(
+            msg.value >= calculateFee(tokens[tokenId].settlementChainId),
+            "Deposit fee is less than transport fee"
         );
         TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
@@ -221,7 +217,10 @@ contract OmnityPortContract is Ownable {
             isActive || command == Command.Reinstate,
             "Contract is unactive now!"
         );
-        require(handledDirectives[sequence] == false, "directive had been handled");
+        require(
+            handledDirectives[sequence] == false,
+            "directive had been handled"
+        );
         if (command == Command.AddChain) {
             string memory settlementChainId = abi.decode(params, (string));
             counterpartiesChains[settlementChainId] = true;
@@ -236,14 +235,10 @@ contract OmnityPortContract is Ownable {
             ) = abi.decode(
                     params,
                     (string, string, address, string, string, uint8)
-            );
+                );
             if (contractAddress == address(0)) {
                 contractAddress = address(
-                    new TokenContract(
-                        name,
-                        symbol,
-                        decimals
-                    )
+                    new TokenContract(name, symbol, decimals)
                 );
             }
             TokenInfo memory t = TokenInfo({
@@ -278,7 +273,7 @@ contract OmnityPortContract is Ownable {
             string memory chainId = abi.decode(params, (string));
             bytes32 h1 = keccak256(abi.encodePacked(omnityChainId));
             bytes32 h2 = keccak256(abi.encodePacked(chainId));
-            if (h1 == h2){
+            if (h1 == h2) {
                 isActive = true;
             } else if (counterpartiesChains[chainId] == false) {
                 counterpartiesChains[chainId] = true;
@@ -289,18 +284,25 @@ contract OmnityPortContract is Ownable {
         emit DirectiveExecuted(sequence);
     }
 
-    function updateTokenSymbol(string memory tokenId, string memory symbol_) public onlyOwner {
+    function updateTokenSymbol(
+        string memory tokenId,
+        string memory symbol_
+    ) public onlyOwner {
         tokens[tokenId].symbol = symbol_;
         TokenContract(tokens[tokenId].erc20ContractAddr).updateSymbol(symbol_);
     }
 
-    function updateTokenName(string memory tokenId, string memory name_) public onlyOwner {
+    function updateTokenName(
+        string memory tokenId,
+        string memory name_
+    ) public onlyOwner {
         tokens[tokenId].name = name_;
         TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
     }
 
-    
-    function calculateFee(string memory target_chain_id) public view returns (uint128) {
+    function calculateFee(
+        string memory target_chain_id
+    ) public view returns (uint128) {
         return targetChainFactor[target_chain_id] * feeTokenFactor;
     }
 
@@ -310,9 +312,6 @@ contract OmnityPortContract is Ownable {
     ) private view {
         bytes32 hash = keccak256(directive);
         address recoverSigner = ECDSA.recover(hash, signature);
-        require(
-            recoverSigner == owner(),
-            "Invalid signature"
-        );
+        require(recoverSigner == owner(), "Invalid signature");
     }
 }
