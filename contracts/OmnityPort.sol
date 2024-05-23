@@ -93,8 +93,7 @@ contract OmnityPortContract is Ownable {
     mapping(string => uint128) public targetChainFactor;
     uint128 public feeTokenFactor;
 
-    constructor(address _chainKeyAddress, string memory _chainId) {
-        omnityChainId = _chainId;
+    constructor(address _chainKeyAddress) {
         chainKeyAddress = _chainKeyAddress;
         isActive = true;
     }
@@ -110,21 +109,6 @@ contract OmnityPortContract is Ownable {
         );
     }
 
-    function setChainKeyAddress(address m) external onlyOwner {
-        chainKeyAddress = m;
-    }
-
-    function executeDirective(bytes memory directiveBytes) external {
-        (
-            Command command,
-            uint256 sequence,
-            uint256 signature,
-            bytes memory params
-        ) = abi.decode(directiveBytes, (Command, uint256, uint256, bytes));
-        _assertSignatureLegal(directiveBytes, abi.encodePacked(signature));
-        _executeDirective(command, sequence, params);
-    }
-
     function privilegedExecuteDirective(
         bytes memory directiveBytes
     ) external onlyOwner {
@@ -133,24 +117,6 @@ contract OmnityPortContract is Ownable {
             (Command, uint256, bytes)
         );
         _executeDirective(command, sequence, params);
-    }
-
-    function mintToken(
-        string memory tokenId,
-        address receiver,
-        uint256 amount,
-        string memory ticketId,
-        string memory memo,
-        bytes memory signature
-    ) external {
-        _assertSignatureLegal(
-            abi.encode(tokenId, receiver, amount, ticketId, memo),
-            signature
-        );
-        require(!handledTickets[ticketId], "ticket is handled");
-        TokenContract(tokens[tokenId].erc20ContractAddr).mint(receiver, amount);
-        handledTickets[ticketId] = true;
-        emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
     function privilegedMintToken(
@@ -174,6 +140,7 @@ contract OmnityPortContract is Ownable {
         string memory memo
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
+        require(bytes(receiver).length > 0, "the receiver's length can't be zero");
         require(
             msg.value >= calculateFee(dstChainId),
             "Deposit fee is less than transport fee"
@@ -197,6 +164,7 @@ contract OmnityPortContract is Ownable {
         uint256 amount
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
+        require(bytes(receiver).length > 0, "the receiver's length can't be zero");
         require(
             msg.value >= calculateFee(tokens[tokenId].settlementChainId),
             "Deposit fee is less than transport fee"
@@ -261,23 +229,9 @@ contract OmnityPortContract is Ownable {
                 targetChainFactor[tokenOrChainId] = amt;
             }
         } else if (command == Command.Suspend) {
-            string memory chainId = abi.decode(params, (string));
-            bytes32 h1 = keccak256(abi.encodePacked(omnityChainId));
-            bytes32 h2 = keccak256(abi.encodePacked(chainId));
-            if (h1 == h2) {
-                isActive = false;
-            } else if (counterpartiesChains[chainId] == true) {
-                counterpartiesChains[chainId] = false;
-            }
+            isActive = false;
         } else if (command == Command.Reinstate) {
-            string memory chainId = abi.decode(params, (string));
-            bytes32 h1 = keccak256(abi.encodePacked(omnityChainId));
-            bytes32 h2 = keccak256(abi.encodePacked(chainId));
-            if (h1 == h2) {
-                isActive = true;
-            } else if (counterpartiesChains[chainId] == false) {
-                counterpartiesChains[chainId] = true;
-            }
+            isActive = true;
         }
         handledDirectives[sequence] = true;
         lastExecutedSequence = sequence;
@@ -304,14 +258,5 @@ contract OmnityPortContract is Ownable {
         string memory target_chain_id
     ) public view returns (uint128) {
         return targetChainFactor[target_chain_id] * feeTokenFactor;
-    }
-
-    function _assertSignatureLegal(
-        bytes memory directive,
-        bytes memory signature
-    ) private view {
-        bytes32 hash = keccak256(directive);
-        address recoverSigner = ECDSA.recover(hash, signature);
-        require(recoverSigner == owner(), "Invalid signature");
     }
 }
