@@ -20,22 +20,12 @@ contract TokenContract is ERC20, Ownable {
         _name = name_;
     }
 
-
-
     function updateSymbol(string memory  symbol_) public onlyOwner {
         _symbol = symbol_;
     }
 
     function updateName(string memory  name_) public onlyOwner {
         _name = name_;
-    }
-
-    function name() public view override returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view override returns (string memory) {
-        return _symbol;
     }
 
     function decimals() public view override returns (uint8) {
@@ -103,19 +93,27 @@ contract OmnityPortContract is Ownable {
 
     address public chainKeyAddress;
     uint256 public lastExecutedSequence;
-    string public omnity_chain_id;
-    bool public is_active;
+    string public omnityChainId;
+    bool public isActive;
     mapping(string => TokenInfo) public tokens;
     mapping(string => bool) public counterpartiesChains; // chainid -> active: true/deactive: false;
-    mapping(string => bool) public handled_tickets;
-    mapping(uint256 => bool) public handled_directives;
-    mapping(string => uint128) public target_chain_factor;
-    uint128 public fee_token_factor;
+    mapping(string => bool) public handledTickets;
+    mapping(uint256 => bool) public handledDirectives;
+    mapping(string => uint128) public targetChainFactor;
+    uint128 public feeTokenFactor;
 
-    constructor(address _chainKeyAddress, string memory _chain_id) {
-        omnity_chain_id = _chain_id;
+    constructor(address _chainKeyAddress, string memory _chainId) {
+        omnityChainId = _chainId;
         chainKeyAddress = _chainKeyAddress;
-        is_active = true;
+        isActive = true;
+    }
+
+    /**
+     * @dev Throws if the sender is not the owner.
+     * Override the original function to add chainKeyAddress as a valid sender.
+     */
+    function _checkOwner() internal view override {
+        require(owner() == _msgSender() || chainKeyAddress == _msgSender(), "Ownable: caller is not the owner");
     }
 
     function setChainKeyAddress(address m) external onlyOwner {    
@@ -133,9 +131,7 @@ contract OmnityPortContract is Ownable {
         _executeDirective(command, sequence, params);
     }
 
-
-    function privilegedExecuteDirective(bytes memory directiveBytes) external {
-        require(msg.sender == chainKeyAddress, "Caller is not the chain key.");
+    function privilegedExecuteDirective(bytes memory directiveBytes) external onlyOwner {
         (Command command, uint256 sequence, bytes memory params) = abi.decode(
             directiveBytes,
             (Command, uint256, bytes)
@@ -155,9 +151,9 @@ contract OmnityPortContract is Ownable {
             abi.encode(tokenId, receiver, amount, ticketId, memo),
             signature
         );
-        require(!handled_tickets[ticketId], "ticket is handled");
+        require(!handledTickets[ticketId], "ticket is handled");
         TokenContract(tokens[tokenId].erc20ContractAddr).mint(receiver, amount);
-        handled_tickets[ticketId] = true;
+        handledTickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
@@ -167,11 +163,10 @@ contract OmnityPortContract is Ownable {
         uint256 amount,
         string memory ticketId,
         string memory memo
-    ) external {
-        require(msg.sender == chainKeyAddress, "Caller is not the minter.");
-        require(!handled_tickets[ticketId], "ticket is handled");
+    ) external onlyOwner {
+        require(!handledTickets[ticketId], "ticket is handled");
         TokenContract(tokens[tokenId].erc20ContractAddr).mint(receiver, amount);
-        handled_tickets[ticketId] = true;
+        handledTickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
@@ -223,10 +218,10 @@ contract OmnityPortContract is Ownable {
         bytes memory params
     ) private {
         require(
-            is_active || command == Command.Reinstate,
+            isActive || command == Command.Reinstate,
             "Contract is unactive now!"
         );
-        require(handled_directives[sequence] == false, "directive had been handled");
+        require(handledDirectives[sequence] == false, "directive had been handled");
         if (command == Command.AddChain) {
             string memory settlementChainId = abi.decode(params, (string));
             counterpartiesChains[settlementChainId] = true;
@@ -262,51 +257,51 @@ contract OmnityPortContract is Ownable {
         } else if (command == Command.UpdateFee) {
             (
                 FactorType factorType,
-                string memory token_or_chain_id,
+                string memory tokenOrChainId,
                 uint128 amt
             ) = abi.decode(params, (FactorType, string, uint128));
             if (factorType == FactorType.FeeTokenFactor) {
-                fee_token_factor = amt;
+                feeTokenFactor = amt;
             } else if (factorType == FactorType.TargetChainFactor) {
-                target_chain_factor[token_or_chain_id] = amt;
+                targetChainFactor[tokenOrChainId] = amt;
             }
         } else if (command == Command.Suspend) {
-            string memory chain_id = abi.decode(params, (string));
-            bytes32 h1 = keccak256(abi.encodePacked(omnity_chain_id));
-            bytes32 h2 = keccak256(abi.encodePacked(chain_id));
+            string memory chainId = abi.decode(params, (string));
+            bytes32 h1 = keccak256(abi.encodePacked(omnityChainId));
+            bytes32 h2 = keccak256(abi.encodePacked(chainId));
             if (h1 == h2) {
-                is_active = false;
-            } else if (counterpartiesChains[chain_id] == true) {
-                counterpartiesChains[chain_id] = false;
+                isActive = false;
+            } else if (counterpartiesChains[chainId] == true) {
+                counterpartiesChains[chainId] = false;
             }
         } else if (command == Command.Reinstate) {
-            string memory chain_id = abi.decode(params, (string));
-            bytes32 h1 = keccak256(abi.encodePacked(omnity_chain_id));
-            bytes32 h2 = keccak256(abi.encodePacked(chain_id));
+            string memory chainId = abi.decode(params, (string));
+            bytes32 h1 = keccak256(abi.encodePacked(omnityChainId));
+            bytes32 h2 = keccak256(abi.encodePacked(chainId));
             if (h1 == h2){
-                is_active = true;
-            } else if (counterpartiesChains[chain_id] == false) {
-                counterpartiesChains[chain_id] = true;
+                isActive = true;
+            } else if (counterpartiesChains[chainId] == false) {
+                counterpartiesChains[chainId] = true;
             }
         }
-        handled_directives[sequence] = true;
+        handledDirectives[sequence] = true;
         lastExecutedSequence = sequence;
         emit DirectiveExecuted(sequence);
     }
 
-    function updateTokenSymbol(string memory token_id, string memory symbol_) public  onlyOwner {
-        tokens[token_id].symbol = symbol_;
-        TokenContract(tokens[token_id].erc20ContractAddr).updateSymbol(symbol_);
+    function updateTokenSymbol(string memory tokenId, string memory symbol_) public onlyOwner {
+        tokens[tokenId].symbol = symbol_;
+        TokenContract(tokens[tokenId].erc20ContractAddr).updateSymbol(symbol_);
     }
 
-    function updateTokenName(string memory token_id, string memory name_) public  onlyOwner {
-        tokens[token_id].name = name_;
-        TokenContract(tokens[token_id].erc20ContractAddr).updateName(name_);
+    function updateTokenName(string memory tokenId, string memory name_) public onlyOwner {
+        tokens[tokenId].name = name_;
+        TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
     }
 
     
     function calculateFee(string memory target_chain_id) public view returns (uint128) {
-        return target_chain_factor[target_chain_id] * fee_token_factor;
+        return targetChainFactor[target_chain_id] * feeTokenFactor;
     }
 
     function _assertSignatureLegal(
