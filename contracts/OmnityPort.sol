@@ -84,7 +84,6 @@ contract OmnityPortContract is Ownable {
 
     address public chainKeyAddress;
     uint256 public lastExecutedSequence;
-    string public omnityChainId;
     bool public isActive;
     mapping(string => TokenInfo) public tokens;
     mapping(string => bool) public handledTickets;
