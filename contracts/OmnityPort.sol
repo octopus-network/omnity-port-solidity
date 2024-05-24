@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -9,11 +9,13 @@ contract TokenContract is ERC20, Ownable {
     uint8 private _decimals;
     string private _name;
     string private _symbol;
+
     constructor(
+        address initialOwner,
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) ERC20(name_, symbol_) Ownable() {
+    ) ERC20(name_, symbol_) Ownable(initialOwner) {
         _decimals = decimals_;
         _symbol = symbol_;
         _name = name_;
@@ -84,6 +86,7 @@ contract OmnityPortContract is Ownable {
 
     address public chainKeyAddress;
     uint256 public lastExecutedSequence;
+    string public omnityChainId;
     bool public isActive;
     mapping(string => TokenInfo) public tokens;
     mapping(string => bool) public handledTickets;
@@ -91,7 +94,10 @@ contract OmnityPortContract is Ownable {
     mapping(string => uint128) public targetChainFactor;
     uint128 public feeTokenFactor;
 
-    constructor(address _chainKeyAddress) {
+    constructor(
+        address _initialOwner,
+        address _chainKeyAddress
+    ) Ownable(_initialOwner) {
         chainKeyAddress = _chainKeyAddress;
         isActive = true;
     }
@@ -207,7 +213,7 @@ contract OmnityPortContract is Ownable {
                 );
             if (contractAddress == address(0)) {
                 contractAddress = address(
-                    new TokenContract(name, symbol, decimals)
+                    new TokenContract(address(this), name, symbol, decimals)
                 );
             }
             TokenInfo memory t = TokenInfo({
