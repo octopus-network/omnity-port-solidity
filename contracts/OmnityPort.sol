@@ -139,7 +139,10 @@ contract OmnityPortContract is Ownable {
         string memory memo
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
-        require(bytes(receiver).length > 0, "the receiver's length can't be zero");
+        require(
+            bytes(receiver).length > 0,
+            "the receiver's length can't be zero"
+        );
         require(
             msg.value >= calculateFee(dstChainId),
             "Deposit fee is less than transport fee"
@@ -163,7 +166,10 @@ contract OmnityPortContract is Ownable {
         uint256 amount
     ) external payable {
         require(amount > 0, "the amount must be more than zero");
-        require(bytes(receiver).length > 0, "the receiver's length can't be zero");
+        require(
+            bytes(receiver).length > 0,
+            "the receiver's length can't be zero"
+        );
         require(
             msg.value >= calculateFee(tokens[tokenId].settlementChainId),
             "Deposit fee is less than transport fee"
@@ -188,7 +194,7 @@ contract OmnityPortContract is Ownable {
             handledDirectives[sequence] == false,
             "directive had been handled"
         );
-       if (command == Command.AddToken) {
+        if (command == Command.AddToken) {
             (
                 string memory settlementChainId,
                 string memory tokenId,
@@ -228,7 +234,7 @@ contract OmnityPortContract is Ownable {
             isActive = false;
         } else if (command == Command.Reinstate) {
             isActive = true;
-        }else {
+        } else {
             return;
         }
         handledDirectives[sequence] = true;
