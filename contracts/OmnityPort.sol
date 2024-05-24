@@ -87,7 +87,6 @@ contract OmnityPortContract is Ownable {
     string public omnityChainId;
     bool public isActive;
     mapping(string => TokenInfo) public tokens;
-    mapping(string => bool) public counterpartiesChains; // chainid -> active: true/deactive: false;
     mapping(string => bool) public handledTickets;
     mapping(uint256 => bool) public handledDirectives;
     mapping(string => uint128) public targetChainFactor;
@@ -189,10 +188,7 @@ contract OmnityPortContract is Ownable {
             handledDirectives[sequence] == false,
             "directive had been handled"
         );
-        if (command == Command.AddChain) {
-            string memory settlementChainId = abi.decode(params, (string));
-            counterpartiesChains[settlementChainId] = true;
-        } else if (command == Command.AddToken) {
+       if (command == Command.AddToken) {
             (
                 string memory settlementChainId,
                 string memory tokenId,
@@ -232,6 +228,8 @@ contract OmnityPortContract is Ownable {
             isActive = false;
         } else if (command == Command.Reinstate) {
             isActive = true;
+        }else {
+            return;
         }
         handledDirectives[sequence] = true;
         lastExecutedSequence = sequence;
