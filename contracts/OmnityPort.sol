@@ -95,9 +95,8 @@ contract OmnityPortContract is Ownable {
     uint128 public feeTokenFactor;
 
     constructor(
-        address _initialOwner,
         address _chainKeyAddress
-    ) Ownable(_initialOwner) {
+    ) Ownable(msg.sender) {
         chainKeyAddress = _chainKeyAddress;
         isActive = true;
     }
@@ -266,7 +265,7 @@ contract OmnityPortContract is Ownable {
     function collectFee(address to_) public onlyOwner {
         payable(to_).transfer(address(this).balance);
     }
-    
+
     function calculateFee(
         string memory target_chain_id
     ) public view returns (uint128) {
