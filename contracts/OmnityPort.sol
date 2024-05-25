@@ -263,6 +263,10 @@ contract OmnityPortContract is Ownable {
         TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
     }
 
+    function collectFee(address to_) public onlyOwner {
+        payable(to_).transfer(address(this).balance);
+    }
+    
     function calculateFee(
         string memory target_chain_id
     ) public view returns (uint128) {
