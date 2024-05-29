@@ -29,16 +29,24 @@ contract TokenContract is ERC20, Ownable {
         _name = name_;
     }
 
+    function name() public view override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view override returns (string memory) {
+        return _symbol;
+    }
+
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
     function mint(address receiver, uint256 amount) public onlyOwner {
-        _mint(receiver, amount * 10 ** (uint256(decimals())));
+        _mint(receiver, amount);
     }
 
     function burn(address owner, uint256 amount) public onlyOwner {
-        _burn(owner, amount * 10 ** (uint256(decimals())));
+        _burn(owner, amount);
     }
 }
 
@@ -64,7 +72,6 @@ contract OmnityPortContract is Ownable {
     event DirectiveExecuted(uint256 seq);
 
     enum Command {
-        AddChain,
         AddToken,
         UpdateFee,
         Suspend,
@@ -86,7 +93,6 @@ contract OmnityPortContract is Ownable {
 
     address public chainKeyAddress;
     uint256 public lastExecutedSequence;
-    string public omnityChainId;
     bool public isActive;
     mapping(string => TokenInfo) public tokens;
     mapping(string => bool) public handledTickets;
@@ -94,9 +100,8 @@ contract OmnityPortContract is Ownable {
     mapping(string => uint128) public targetChainFactor;
     uint128 public feeTokenFactor;
 
-    constructor(
-        address _chainKeyAddress
-    ) Ownable(msg.sender) {
+    constructor(address _chainKeyAddress) Ownable(msg.sender) {
+        require(_chainKeyAddress != address(0), "chainKeyAddress is zero");
         chainKeyAddress = _chainKeyAddress;
         isActive = true;
     }
@@ -148,8 +153,8 @@ contract OmnityPortContract is Ownable {
             "the receiver's length can't be zero"
         );
         require(
-            msg.value >= calculateFee(dstChainId),
-            "Deposit fee is less than transport fee"
+            msg.value == calculateFee(dstChainId),
+            "Deposit fee is not equal to the transport fee"
         );
         TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
@@ -175,8 +180,8 @@ contract OmnityPortContract is Ownable {
             "the receiver's length can't be zero"
         );
         require(
-            msg.value >= calculateFee(tokens[tokenId].settlementChainId),
-            "Deposit fee is less than transport fee"
+            msg.value == calculateFee(tokens[tokenId].settlementChainId),
+            "Deposit fee is not equal to the transport fee"
         );
         TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
