@@ -40,7 +40,7 @@ The `Omnity port` contract will have a function `privilegedExecuteDirective` to 
 
 * `directive`: The directive to be executed. It has the following fields:
   * `command`: The enum option for the command of the directive.
-  * `sequence`: The sequence number of the directive, to prevent replay attack. This sequence must be continuous, will be checked by the contract.
+  * `sequence`: The sequence number of the directive.
 
 The `command` in `directive` has the following enum options:
 
@@ -58,7 +58,7 @@ The `command` in `directive` has the following enum options:
 
 The functions of the `command`s are:
 
-* `AddToken`: Add a token to the `Omnity port` contract. If the param `tokenContractAddress` is not specified, a token contract will be deployed automatically, the address of the token contract will be stored.
+* `AddToken`: Add a token to the `Omnity port` contract. If the param `tokenContractAddress` is not specified, a token contract will be deployed automatically, the address of the token contract will be stored. If the `tokenContractAddress` is specifed, the contract on the address must have the same interfaces with the `Token contract` in this repository. (This is ensured by the `Omnity Route`).
 * `UpdateFee`: Update the fee for token transport/redeem of corresponding settlement chain.
 * `Suspend`: Suspend the `Omnity port` contract. No further directive will be executed.
 * `Reinstate`: Reinstate the `Omnity port` contract.
@@ -111,7 +111,7 @@ This function will burn the tokens from the caller (by calling the `burn` functi
 
 ### Fee Collection and Clearance
 
-TBD
+This contract has a function `collectFee` to collect the fee to a specific address.
 
 ## Token contract
 
