@@ -1,164 +1,162 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract TokenContract is ERC20 {
-    address private _portContract;
+contract TokenContract is ERC20, Ownable {
     uint8 private _decimals;
+    string private _name;
+    string private _symbol;
 
     constructor(
-        address portContract_,
+        address initialOwner,
         string memory name_,
         string memory symbol_,
         uint8 decimals_
-    ) ERC20(name_, symbol_) {
-        _portContract = portContract_;
+    ) ERC20(name_, symbol_) Ownable(initialOwner) {
         _decimals = decimals_;
+        _symbol = symbol_;
+        _name = name_;
     }
 
-    modifier onlyPort() {
-        require(_portContract == _msgSender(), "Caller is not the port.");
-        _;
+    function updateSymbol(string memory symbol_) public onlyOwner {
+        _symbol = symbol_;
     }
 
-    function portContract() public view returns (address) {
-        return _portContract;
+    function updateName(string memory name_) public onlyOwner {
+        _name = name_;
+    }
+
+    function name() public view override returns (string memory) {
+        return _name;
+    }
+
+    function symbol() public view override returns (string memory) {
+        return _symbol;
     }
 
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
 
-    function mint(address receiver, uint256 amount) public onlyPort {
-        _mint(receiver, amount * 10 ** (uint256(decimals())));
+    function mint(address receiver, uint256 amount) public onlyOwner {
+        _mint(receiver, amount);
     }
 
-    function burn(address owner, uint256 amount) public onlyPort {
-        _burn(owner, amount * 10 ** (uint256(decimals())));
+    function burn(address owner, uint256 amount) public onlyOwner {
+        _burn(owner, amount);
     }
 }
 
-contract OmnityPortContract {
+contract OmnityPortContract is Ownable {
     event TokenMinted(
-        bytes32 tokenId,
+        string tokenId,
         address receiver,
         uint256 amount,
-        uint256 ticketId,
+        string ticketId,
         string memo
     );
 
     event TokenTransportRequested(
-        bytes32 dstChainId,
-        bytes32 tokenId,
+        string dstChainId,
+        string tokenId,
         string receiver,
         uint256 amount,
-        string channelId,
         string memo
     );
 
-    event TokenBurned(
-        bytes32 tokenId,
-        string receiver,
-        uint256 amount,
-        string channelId
-    );
+    event TokenBurned(string tokenId, string receiver, uint256 amount);
+
+    event DirectiveExecuted(uint256 seq);
 
     enum Command {
-        AddSettlementChain,
         AddToken,
         UpdateFee,
         Suspend,
         Reinstate
     }
 
-    enum FeeType {
-        Transport,
-        Redeem
+    enum FactorType {
+        TargetChainFactor,
+        FeeTokenFactor
     }
 
-    bytes public minterPubkey;
-    address public minterAddress;
-    bytes32[] public settlementChains;
+    struct TokenInfo {
+        string name;
+        string symbol;
+        uint8 decimals;
+        address erc20ContractAddr;
+        string settlementChainId;
+    }
+
+    address public chainKeyAddress;
     uint256 public lastExecutedSequence;
-    bool public suspended;
+    bool public isActive;
+    mapping(string => TokenInfo) public tokens;
+    mapping(string => bool) public handledTickets;
+    mapping(uint256 => bool) public handledDirectives;
+    mapping(string => uint128) public targetChainFactor;
+    uint128 public feeTokenFactor;
 
-    mapping(bytes32 => bytes32) public tokenIdToSettlementChain;
-    mapping(bytes32 => address) public tokenIdToContractAddress;
-
-    mapping(bytes32 => uint256) transportFeeOf;
-    mapping(bytes32 => uint256) redeemFeeOf;
-
-    constructor(bytes memory _minterPubkey, address _minterAddress) {
-        minterPubkey = _minterPubkey;
-        minterAddress = _minterAddress;
-        suspended = false;
+    constructor(address _chainKeyAddress) Ownable(msg.sender) {
+        require(_chainKeyAddress != address(0), "chainKeyAddress is zero");
+        chainKeyAddress = _chainKeyAddress;
+        isActive = true;
     }
 
-    function executeDirective(bytes memory directiveBytes) external {
-        (
-            Command command,
-            uint256 sequence,
-            uint256 signature,
-            bytes memory params
-        ) = abi.decode(directiveBytes, (Command, uint256, uint256, bytes));
-        _assertSignatureLegal(directiveBytes, abi.encodePacked(signature));
-
-        _executeDirective(command, sequence, params);
+    /**
+     * @dev Throws if the sender is not the owner.
+     * Override the original function to add chainKeyAddress as a valid sender.
+     */
+    function _checkOwner() internal view override {
+        require(
+            owner() == _msgSender() || chainKeyAddress == _msgSender(),
+            "Ownable: caller is not the owner"
+        );
     }
 
-    function privilegedExecuteDirective(bytes memory directiveBytes) external {
-        require(msg.sender == minterAddress, "Caller is not the minter.");
+    function privilegedExecuteDirective(
+        bytes memory directiveBytes
+    ) external onlyOwner {
         (Command command, uint256 sequence, bytes memory params) = abi.decode(
             directiveBytes,
             (Command, uint256, bytes)
         );
-
         _executeDirective(command, sequence, params);
     }
 
-    function mintToken(
-        bytes32 tokenId,
-        address receiver,
-        uint256 amount,
-        uint256 ticketId,
-        string memory memo,
-        bytes memory signature
-    ) external {
-        _assertSignatureLegal(
-            abi.encode(tokenId, receiver, amount, ticketId, memo),
-            signature
-        );
-        TokenContract(tokenIdToContractAddress[tokenId]).mint(receiver, amount);
-        emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
-    }
-
     function privilegedMintToken(
-        bytes32 tokenId,
+        string memory tokenId,
         address receiver,
         uint256 amount,
-        uint256 ticketId,
+        string memory ticketId,
         string memory memo
-    ) external {
-        require(msg.sender == minterAddress, "Caller is not the minter.");
-        TokenContract(tokenIdToContractAddress[tokenId]).mint(receiver, amount);
+    ) external onlyOwner {
+        require(!handledTickets[ticketId], "ticket is handled");
+        TokenContract(tokens[tokenId].erc20ContractAddr).mint(receiver, amount);
+        handledTickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
     }
 
     function transportToken(
-        bytes32 dstChainId,
-        bytes32 tokenId,
+        string memory dstChainId,
+        string memory tokenId,
         string memory receiver,
         uint256 amount,
-        string memory channelId,
         string memory memo
     ) external payable {
+        require(amount > 0, "the amount must be more than zero");
         require(
-            msg.value == transportFeeOf[dstChainId],
-            "Deposit ETH not equal transport fee"
+            bytes(receiver).length > 0,
+            "the receiver's length can't be zero"
         );
-        TokenContract(tokenIdToContractAddress[tokenId]).burn(
+        require(
+            msg.value == calculateFee(dstChainId),
+            "Deposit fee is not equal to the transport fee"
+        );
+        TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
             amount
         );
@@ -167,28 +165,29 @@ contract OmnityPortContract {
             tokenId,
             receiver,
             amount,
-            channelId,
             memo
         );
     }
 
     function redeemToken(
-        bytes32 tokenId,
+        string memory tokenId,
         string memory receiver,
-        uint256 amount,
-        string memory channelId
+        uint256 amount
     ) external payable {
+        require(amount > 0, "the amount must be more than zero");
         require(
-            msg.value == redeemFeeOf[tokenIdToSettlementChain[tokenId]],
-            "Deposit ETH not equal transport fee"
+            bytes(receiver).length > 0,
+            "the receiver's length can't be zero"
         );
-
-        TokenContract(tokenIdToContractAddress[tokenId]).burn(
+        require(
+            msg.value == calculateFee(tokens[tokenId].settlementChainId),
+            "Deposit fee is not equal to the transport fee"
+        );
+        TokenContract(tokens[tokenId].erc20ContractAddr).burn(
             msg.sender,
             amount
         );
-
-        emit TokenBurned(tokenId, receiver, amount, channelId);
+        emit TokenBurned(tokenId, receiver, amount);
     }
 
     function _executeDirective(
@@ -196,80 +195,90 @@ contract OmnityPortContract {
         uint256 sequence,
         bytes memory params
     ) private {
-        lastExecutedSequence += 1;
         require(
-            !suspended || command == Command.Reinstate,
-            "Contract is suspended"
+            isActive || command == Command.Reinstate,
+            "Contract is unactive now!"
         );
-        require(lastExecutedSequence == sequence, "Invalid sequence");
-
-        if (command == Command.AddSettlementChain) {
-            bytes32 settlementChainId = abi.decode(params, (bytes32));
-            settlementChains.push(settlementChainId);
-        } else if (command == Command.AddToken) {
+        require(
+            handledDirectives[sequence] == false,
+            "directive had been handled"
+        );
+        if (command == Command.AddToken) {
             (
-                bytes32 settlementChainId,
-                bytes32 tokenId,
+                string memory settlementChainId,
+                string memory tokenId,
                 address contractAddress,
-                bytes32 name,
-                bytes32 symbol,
+                string memory name,
+                string memory symbol,
                 uint8 decimals
             ) = abi.decode(
                     params,
-                    (bytes32, bytes32, address, bytes32, bytes32, uint8)
+                    (string, string, address, string, string, uint8)
                 );
-
             if (contractAddress == address(0)) {
                 contractAddress = address(
-                    new TokenContract(
-                        address(this),
-                        string(abi.encodePacked(name)),
-                        string(abi.encodePacked(symbol)),
-                        decimals
-                    )
+                    new TokenContract(address(this), name, symbol, decimals)
                 );
             }
-            tokenIdToContractAddress[tokenId] = contractAddress;
-            tokenIdToSettlementChain[tokenId] = settlementChainId;
+            TokenInfo memory t = TokenInfo({
+                name: name,
+                symbol: symbol,
+                erc20ContractAddr: contractAddress,
+                decimals: decimals,
+                settlementChainId: settlementChainId
+            });
+            tokens[tokenId] = t;
         } else if (command == Command.UpdateFee) {
             (
-                bytes32 settlementChainId,
-                FeeType feeType,
-                uint256 feeAmount
-            ) = abi.decode(params, (bytes32, FeeType, uint256));
-
-            if (feeType == FeeType.Redeem) {
-                redeemFeeOf[settlementChainId] = feeAmount;
-            } else if (feeType == FeeType.Transport) {
-                transportFeeOf[settlementChainId] = feeAmount;
+                FactorType factorType,
+                string memory tokenOrChainId,
+                uint128 amt
+            ) = abi.decode(params, (FactorType, string, uint128));
+            if (factorType == FactorType.FeeTokenFactor) {
+                feeTokenFactor = amt;
+            } else if (factorType == FactorType.TargetChainFactor) {
+                targetChainFactor[tokenOrChainId] = amt;
             }
         } else if (command == Command.Suspend) {
-            suspended = true;
+            isActive = false;
         } else if (command == Command.Reinstate) {
-            suspended = false;
+            isActive = true;
+        } else {
+            return;
         }
+        handledDirectives[sequence] = true;
+        lastExecutedSequence = sequence;
+        emit DirectiveExecuted(sequence);
     }
 
-    function calculateAddress(
-        bytes memory pub
-    ) public pure returns (address addr) {
-        bytes32 hash = keccak256(pub);
-        assembly {
-            mstore(0, hash)
-            addr := mload(0)
-        }
+    function updateTokenSymbol(
+        string memory tokenId,
+        string memory symbol_
+    ) public onlyOwner {
+        tokens[tokenId].symbol = symbol_;
+        TokenContract(tokens[tokenId].erc20ContractAddr).updateSymbol(symbol_);
     }
 
-    function _assertSignatureLegal(
-        bytes memory directive,
-        bytes memory signature
-    ) private view {
-        bytes32 hash = keccak256(directive);
-        address recoverSigner = ECDSA.recover(hash, signature);
+    function updateTokenName(
+        string memory tokenId,
+        string memory name_
+    ) public onlyOwner {
+        tokens[tokenId].name = name_;
+        TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
+    }
 
-        require(
-            recoverSigner == calculateAddress(minterPubkey),
-            "Invalid signature"
-        );
+    function changeChainKeyAddress(address newChainKeyAddress) public onlyOwner {
+        require(newChainKeyAddress != address(0), "chainKeyAddress is zero");
+        chainKeyAddress = newChainKeyAddress;
+    }
+
+    function collectFee(address to_) public onlyOwner {
+        payable(to_).transfer(address(this).balance);
+    }
+
+    function calculateFee(
+        string memory target_chain_id
+    ) public view returns (uint128) {
+        return targetChainFactor[target_chain_id] * feeTokenFactor;
     }
 }
