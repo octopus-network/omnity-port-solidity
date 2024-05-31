@@ -136,3 +136,7 @@ The token contract will have a function `burn` to burn tokens. This function has
 * `amount`: The amount of the tokens to be burned.
 
 Only the `Omnity Port contract` can call this function.
+
+## Audits
+
+This contract has been audited by [Blocksec](https://blocksec.com/). See the [report](./audits/blocksec_omnityport_v1.0_signed.pdf).
