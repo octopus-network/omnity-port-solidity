@@ -267,6 +267,11 @@ contract OmnityPortContract is Ownable {
         TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
     }
 
+    function changeChainKeyAddress(address newChainKeyAddress) public onlyOwner {
+        require(newChainKeyAddress != address(0), "chainKeyAddress is zero");
+        chainKeyAddress = newChainKeyAddress;
+    }
+
     function collectFee(address to_) public onlyOwner {
         payable(to_).transfer(address(this).balance);
     }
