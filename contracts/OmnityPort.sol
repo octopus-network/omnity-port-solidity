@@ -67,6 +67,11 @@ contract OmnityPortContract is Ownable {
         string memo
     );
 
+    event TokenAdded(
+        string tokenId,
+        address tokenAddress
+    );
+
     event TokenBurned(string tokenId, string receiver, uint256 amount);
 
     event DirectiveExecuted(uint256 seq);
@@ -228,6 +233,7 @@ contract OmnityPortContract is Ownable {
                 settlementChainId: settlementChainId
             });
             tokens[tokenId] = t;
+            emit TokenAdded(tokenId, contractAddress);
         } else if (command == Command.UpdateFee) {
             (
                 FactorType factorType,
