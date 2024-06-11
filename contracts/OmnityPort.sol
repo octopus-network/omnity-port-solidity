@@ -71,6 +71,8 @@ contract OmnityPortContract is Ownable {
 
     event DirectiveExecuted(uint256 seq);
 
+    event BalanceCollected(uint256 indexed amount);
+
     enum Command {
         AddToken,
         UpdateFee,
@@ -273,7 +275,9 @@ contract OmnityPortContract is Ownable {
     }
 
     function collectFee(address to_) public onlyOwner {
-        payable(to_).transfer(address(this).balance);
+        uint256 amount = address(this).balance;
+        payable(to_).transfer(amount);
+        emit BalanceCollected(amount);
     }
 
     function calculateFee(
