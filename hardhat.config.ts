@@ -6,12 +6,8 @@ const DEPLOY_PRI_KEY = vars.get("DEPLOY_PRI_KEY");
 const config: HardhatUserConfig = {
   solidity: "0.8.20",
   networks: {
-    sepolia: {
-      url: `https://rpc-sepolia.rockx.com`,
-      accounts: [DEPLOY_PRI_KEY],
-    },
-    bevm_testnet: {
-      url: `https://testnet.bevm.io`,
+    bevm_mainnet: {
+      url: `https://rpc-mainnet-1.bevm.io`,
       accounts: [DEPLOY_PRI_KEY],
     }
   }
