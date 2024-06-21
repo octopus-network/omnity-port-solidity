@@ -281,6 +281,4 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
-
-
 }
