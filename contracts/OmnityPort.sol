@@ -2,55 +2,12 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./TokenContract.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract TokenContract is ERC20, Ownable {
-    uint8 private _decimals;
-    string private _name;
-    string private _symbol;
-
-    constructor(
-        address initialOwner,
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_
-    ) ERC20(name_, symbol_) Ownable(initialOwner) {
-        _decimals = decimals_;
-        _symbol = symbol_;
-        _name = name_;
-    }
-
-    function updateSymbol(string memory symbol_) public onlyOwner {
-        _symbol = symbol_;
-    }
-
-    function updateName(string memory name_) public onlyOwner {
-        _name = name_;
-    }
-
-    function name() public view override returns (string memory) {
-        return _name;
-    }
-
-    function symbol() public view override returns (string memory) {
-        return _symbol;
-    }
-
-    function decimals() public view override returns (uint8) {
-        return _decimals;
-    }
-
-    function mint(address receiver, uint256 amount) public onlyOwner {
-        _mint(receiver, amount);
-    }
-
-    function burn(address owner, uint256 amount) public onlyOwner {
-        _burn(owner, amount);
-    }
-}
-
-contract OmnityPortContract is Ownable {
+contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     event TokenMinted(
         string tokenId,
         address receiver,
@@ -62,17 +19,15 @@ contract OmnityPortContract is Ownable {
     event TokenTransportRequested(
         string dstChainId,
         string tokenId,
+        address sender,
         string receiver,
         uint256 amount,
         string memo
     );
 
-    event TokenAdded(
-        string tokenId,
-        address tokenAddress
-    );
+    event TokenAdded(string tokenId, address tokenAddress);
 
-    event TokenBurned(string tokenId, string receiver, uint256 amount);
+    event TokenBurned(string tokenId, address sender, string receiver, uint256 amount);
 
     event DirectiveExecuted(uint256 seq);
 
@@ -102,15 +57,18 @@ contract OmnityPortContract is Ownable {
     uint256 public lastExecutedSequence;
     bool public isActive;
     mapping(string => TokenInfo) public tokens;
+    string[] tokenIds;
     mapping(string => bool) public handledTickets;
     mapping(uint256 => bool) public handledDirectives;
     mapping(string => uint128) public targetChainFactor;
     uint128 public feeTokenFactor;
 
-    constructor(address _chainKeyAddress) Ownable(msg.sender) {
+    function initialize(address _chainKeyAddress) public initializer {
         require(_chainKeyAddress != address(0), "chainKeyAddress is zero");
         chainKeyAddress = _chainKeyAddress;
         isActive = true;
+        __Ownable_init(msg.sender);
+        __UUPSUpgradeable_init();
     }
 
     /**
@@ -170,10 +128,27 @@ contract OmnityPortContract is Ownable {
         emit TokenTransportRequested(
             dstChainId,
             tokenId,
+            msg.sender,
             receiver,
             amount,
             memo
         );
+    }
+
+    function burnToken(
+        string memory tokenId,
+        uint256 amount
+    ) external payable {
+        require(amount > 0, "the amount must be more than zero");
+        require(
+            msg.value == calculateFee(tokens[tokenId].settlementChainId),
+            "Deposit fee is not equal to the transport fee"
+        );
+        TokenContract(tokens[tokenId].erc20ContractAddr).burn(
+            msg.sender,
+            amount
+        );
+        emit TokenBurned(tokenId, msg.sender, "0",amount);
     }
 
     function redeemToken(
@@ -194,7 +169,21 @@ contract OmnityPortContract is Ownable {
             msg.sender,
             amount
         );
-        emit TokenBurned(tokenId, receiver, amount);
+        emit TokenBurned(tokenId, msg.sender, receiver, amount);
+    }
+
+    function transferTokensOwnership(address newTokenOwner) public onlyOwner {
+        for (uint i = 0; i < tokenIds.length; i++) {
+            TokenInfo memory tinfo = tokens[tokenIds[i]];
+            TokenContract tokenContract = TokenContract(tinfo.erc20ContractAddr);
+            tokenContract.transferOwnership(newTokenOwner);
+        }
+    }
+
+    function fillHistoryTickets(string[] memory ticketIds) public onlyOwner {
+        for ( uint i = 0; i < ticketIds.length; i++) {
+            handledTickets[ticketIds[i]] = true;
+        }
     }
 
     function _executeDirective(
@@ -235,6 +224,7 @@ contract OmnityPortContract is Ownable {
                 settlementChainId: settlementChainId
             });
             tokens[tokenId] = t;
+            tokenIds.push(tokenId);
             emit TokenAdded(tokenId, contractAddress);
         } else if (command == Command.UpdateFee) {
             (
@@ -275,7 +265,9 @@ contract OmnityPortContract is Ownable {
         TokenContract(tokens[tokenId].erc20ContractAddr).updateName(name_);
     }
 
-    function changeChainKeyAddress(address newChainKeyAddress) public onlyOwner {
+    function changeChainKeyAddress(
+        address newChainKeyAddress
+    ) public onlyOwner {
         require(newChainKeyAddress != address(0), "chainKeyAddress is zero");
         chainKeyAddress = newChainKeyAddress;
     }
@@ -291,4 +283,8 @@ contract OmnityPortContract is Ownable {
     ) public view returns (uint128) {
         return targetChainFactor[target_chain_id] * feeTokenFactor;
     }
+
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyOwner {}
 }
