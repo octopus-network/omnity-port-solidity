@@ -180,6 +180,12 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         }
     }
 
+    function fillHistoryTickets(string[] memory ticketIds) public onlyOwner {
+        for ( uint i = 0; i < ticketIds.length; i++) {
+            handledTickets[ticketIds[i]] = true;
+        }
+    }
+
     function _executeDirective(
         Command command,
         uint256 sequence,
