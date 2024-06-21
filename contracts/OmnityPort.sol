@@ -135,7 +135,6 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         );
     }
 
-
     function burnToken(
         string memory tokenId,
         uint256 amount
