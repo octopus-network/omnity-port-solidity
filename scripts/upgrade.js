@@ -1,7 +1,6 @@
 const { ethers, upgrades } = require("hardhat");
 
-const PROXY = "0xea1213666aB92EbaC40e5887ca5EeB26237fC58d";
-
+const PROXY = "0x29b416d48C84D99d0271c05ab74B49bb6D5549e6";
 async function main() {
   const OmnityPort = await ethers.getContractFactory("OmnityPortContractV2");
   console.log("Upgrading OmnityPort...");
