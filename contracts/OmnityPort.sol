@@ -25,6 +25,11 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         string memo
     );
 
+    event RunesMint(
+        string tokenId,
+        address receiver,
+        uint256 amount
+    );
     event TokenAdded(string tokenId, address tokenAddress);
 
     event TokenBurned(string tokenId, address sender, string receiver, uint256 amount);
@@ -103,6 +108,24 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         TokenContract(tokens[tokenId].erc20ContractAddr).mint(receiver, amount);
         handledTickets[ticketId] = true;
         emit TokenMinted(tokenId, receiver, amount, ticketId, memo);
+    }
+
+    function mintRunes(
+        string memory tokenId,
+        uint256 amount,
+        address receiver
+    ) public payable{
+        require(amount > 0, "the amount must more than zero");
+        require(tokens[tokenId].erc20ContractAddr != address(0), "tokenId is not exist");
+        require(
+            msg.value == calculateFee(tokens[tokenId].settlementChainId),
+            "Deposit fee is not equal to the transport fee"
+        );
+        address recv = receiver;
+        if ( recv == address(0) ) {
+            recv = msg.sender;
+        }
+        emit RunesMint(tokenId, recv, amount);
     }
 
     function transportToken(
