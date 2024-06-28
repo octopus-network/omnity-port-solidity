@@ -27,6 +27,7 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
 
     event RunesMint(
         string tokenId,
+        address sender,
         address receiver,
         uint256 amount
     );
@@ -117,6 +118,7 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
     ) public payable{
         require(amount > 0, "the amount must more than zero");
         require(tokens[tokenId].erc20ContractAddr != address(0), "tokenId is not exist");
+        require(startsWtih(tokenId, "Bitcoin-runes-"), "You can mint runes only");
         require(
             msg.value == calculateFee(tokens[tokenId].settlementChainId),
             "Deposit fee is not equal to the transport fee"
@@ -125,8 +127,10 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         if ( recv == address(0) ) {
             recv = msg.sender;
         }
-        emit RunesMint(tokenId, recv, amount);
+        emit RunesMint(tokenId, msg.sender, recv, amount);
     }
+
+    
 
     function transportToken(
         string memory dstChainId,
@@ -234,6 +238,7 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
                     params,
                     (string, string, address, string, string, uint8)
                 );
+            require(tokens[tokenId].erc20ContractAddr == address(0), "duplicate issue token");
             if (contractAddress == address(0)) {
                 contractAddress = address(
                     new TokenContract(address(this), name, symbol, decimals)
@@ -310,4 +315,18 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
     function _authorizeUpgrade(
         address newImplementation
     ) internal override onlyOwner {}
+
+    function startsWtih(string memory ori, string memory pattern) private view returns (bool) {
+        bytes memory o = bytes(ori);
+        bytes memory p = bytes(pattern);
+        if ( o.length < p.length ) {
+            return false;
+        }
+        for (uint i = 0; i < p.length; i++) {
+            if (o[i] != p[i] ) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
