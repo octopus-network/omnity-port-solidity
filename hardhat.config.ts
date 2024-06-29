@@ -16,17 +16,29 @@ const config: HardhatUserConfig = {
     }
   },
   networks: {
-    sepolia: {
-      url: `https://rpc-sepolia.rockx.com`,
+    bevm: {
+      url: `https://rpc-mainnet-1.bevm.io`,
       accounts: [DEPLOY_PRI_KEY],
     },
-    bevm_testnet: {
-      url: `https://testnet.bevm.io`,
-      accounts: [DEPLOY_PRI_KEY],
+    bitlayer: {
+	    url:`https://rpc.bitlayer.org`,
+	    accounts: [DEPLOY_PRI_KEY],
     },
-    bitlayer_testnet: {
-	url:`https://testnet-rpc.bitlayer.org`,
-	accounts: [DEPLOY_PRI_KEY],
+    bob: {
+	    url:`https://rpc.gobob.xyz`,
+	    accounts: [DEPLOY_PRI_KEY],
+    },
+    bsquared: {
+	    url:`https://mainnet.b2-rpc.com`,
+	    accounts: [DEPLOY_PRI_KEY],
+    },
+    xlayer: {
+	    url:`https://rpc.xlayer.tech`,
+	    accounts: [DEPLOY_PRI_KEY],
+    },
+    merlin: {
+	    url:`https://rpc.merlinchain.io`,
+	    accounts: [DEPLOY_PRI_KEY],
     }
   }
 };
