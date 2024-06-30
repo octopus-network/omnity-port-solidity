@@ -7,7 +7,11 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract OmnityPortContract is
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable
+{
     event TokenMinted(
         string tokenId,
         address receiver,
@@ -33,7 +37,12 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
     );
     event TokenAdded(string tokenId, address tokenAddress);
 
-    event TokenBurned(string tokenId, address sender, string receiver, uint256 amount);
+    event TokenBurned(
+        string tokenId,
+        address sender,
+        string receiver,
+        uint256 amount
+    );
 
     event DirectiveExecuted(uint256 seq);
 
@@ -115,22 +124,26 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         string memory tokenId,
         uint256 amount,
         address receiver
-    ) public payable{
+    ) public payable {
         require(amount > 0, "the amount must more than zero");
-        require(tokens[tokenId].erc20ContractAddr != address(0), "tokenId is not exist");
-        require(startsWtih(tokenId, "Bitcoin-runes-"), "You can mint runes only");
+        require(
+            tokens[tokenId].erc20ContractAddr != address(0),
+            "tokenId is not exist"
+        );
+        require(
+            startsWtih(tokenId, "Bitcoin-runes-"),
+            "You can mint runes only"
+        );
         require(
             msg.value == calculateFee(tokens[tokenId].settlementChainId),
             "Deposit fee is not equal to the transport fee"
         );
         address recv = receiver;
-        if ( recv == address(0) ) {
+        if (recv == address(0)) {
             recv = msg.sender;
         }
         emit RunesMint(tokenId, msg.sender, recv, amount);
     }
-
-    
 
     function transportToken(
         string memory dstChainId,
@@ -162,10 +175,7 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         );
     }
 
-    function burnToken(
-        string memory tokenId,
-        uint256 amount
-    ) external payable {
+    function burnToken(string memory tokenId, uint256 amount) external payable {
         require(amount > 0, "the amount must be more than zero");
         require(
             msg.value == calculateFee(tokens[tokenId].settlementChainId),
@@ -175,7 +185,7 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
             msg.sender,
             amount
         );
-        emit TokenBurned(tokenId, msg.sender, "0",amount);
+        emit TokenBurned(tokenId, msg.sender, "0", amount);
     }
 
     function redeemToken(
@@ -202,13 +212,15 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
     function transferTokensOwnership(address newTokenOwner) public onlyOwner {
         for (uint i = 0; i < tokenIds.length; i++) {
             TokenInfo memory tinfo = tokens[tokenIds[i]];
-            TokenContract tokenContract = TokenContract(tinfo.erc20ContractAddr);
+            TokenContract tokenContract = TokenContract(
+                tinfo.erc20ContractAddr
+            );
             tokenContract.transferOwnership(newTokenOwner);
         }
     }
 
     function fillHistoryTickets(string[] memory ticketIds) public onlyOwner {
-        for ( uint i = 0; i < ticketIds.length; i++) {
+        for (uint i = 0; i < ticketIds.length; i++) {
             handledTickets[ticketIds[i]] = true;
         }
     }
@@ -238,7 +250,10 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
                     params,
                     (string, string, address, string, string, uint8)
                 );
-            require(tokens[tokenId].erc20ContractAddr == address(0), "duplicate issue token");
+            require(
+                tokens[tokenId].erc20ContractAddr == address(0),
+                "duplicate issue token"
+            );
             if (contractAddress == address(0)) {
                 contractAddress = address(
                     new TokenContract(address(this), name, symbol, decimals)
@@ -316,17 +331,21 @@ contract OmnityPortContract is Initializable, UUPSUpgradeable, OwnableUpgradeabl
         address newImplementation
     ) internal override onlyOwner {}
 
-    function startsWtih(string memory ori, string memory pattern) private view returns (bool) {
+    function startsWtih(
+        string memory ori,
+        string memory prefix
+    ) private view returns (bool) {
         bytes memory o = bytes(ori);
-        bytes memory p = bytes(pattern);
-        if ( o.length < p.length ) {
+        bytes memory p = bytes(prefix);
+        if (o.length > p.length) {
+            for (uint i = 0; i < p.length; i++) {
+                if (o[i] != p[i]) {
+                    return false;
+                }
+            }
+            return true;
+        } else {
             return false;
         }
-        for (uint i = 0; i < p.length; i++) {
-            if (o[i] != p[i] ) {
-                return false;
-            }
-        }
-        return true;
     }
 }
