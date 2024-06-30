@@ -29,7 +29,7 @@ contract OmnityPortContract is
         string memo
     );
 
-    event RunesMint(
+    event RunesMintRequested(
         string tokenId,
         address sender,
         address receiver,
@@ -142,7 +142,7 @@ contract OmnityPortContract is
         if (recv == address(0)) {
             recv = msg.sender;
         }
-        emit RunesMint(tokenId, msg.sender, recv, amount);
+        emit RunesMintRequested(tokenId, msg.sender, recv, amount);
     }
 
     function transportToken(
