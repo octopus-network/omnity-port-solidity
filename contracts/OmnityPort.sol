@@ -32,9 +32,9 @@ contract OmnityPortContract is
     event RunesMintRequested(
         string tokenId,
         address sender,
-        address receiver,
-        uint256 amount
+        address receiver
     );
+    
     event TokenAdded(string tokenId, address tokenAddress);
 
     event TokenBurned(
@@ -122,10 +122,8 @@ contract OmnityPortContract is
 
     function mintRunes(
         string memory tokenId,
-        uint256 amount,
         address receiver
     ) public payable {
-        require(amount > 0, "the amount must more than zero");
         require(
             tokens[tokenId].erc20ContractAddr != address(0),
             "tokenId is not exist"
@@ -142,7 +140,7 @@ contract OmnityPortContract is
         if (recv == address(0)) {
             recv = msg.sender;
         }
-        emit RunesMintRequested(tokenId, msg.sender, recv, amount);
+        emit RunesMintRequested(tokenId, msg.sender, recv);
     }
 
     function transportToken(
