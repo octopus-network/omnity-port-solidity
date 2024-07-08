@@ -238,6 +238,237 @@
           ]
         }
       }
+    },
+    "10b93f9270061ac84ec2c9a64684e5743f351fd6746750f8667b2eaf3a37407b": {
+      "address": "0xfd54661cCa171aaAAB75D565B57900a9Ea3BC653",
+      "txHash": "0x428e54bd6ed17a7da7d8096ebba63515102ad4a4344f89c0de36290a713ad964",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "label": "chainKeyAddress",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:71"
+          },
+          {
+            "label": "lastExecutedSequence",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:72"
+          },
+          {
+            "label": "isActive",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_bool",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:73"
+          },
+          {
+            "label": "tokens",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_string_memory_ptr,t_struct(TokenInfo)2736_storage)",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:74"
+          },
+          {
+            "label": "tokenIds",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_array(t_string_storage)dyn_storage",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:75"
+          },
+          {
+            "label": "handledTickets",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_mapping(t_string_memory_ptr,t_bool)",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:76"
+          },
+          {
+            "label": "handledDirectives",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:77"
+          },
+          {
+            "label": "targetChainFactor",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_string_memory_ptr,t_uint128)",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:78"
+          },
+          {
+            "label": "feeTokenFactor",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_uint128",
+            "contract": "OmnityPortContract",
+            "src": "contracts/OmnityPort.sol:79"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)65_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)14_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_string_storage)dyn_storage": {
+            "label": "string[]",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_bool)": {
+            "label": "mapping(string => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_struct(TokenInfo)2736_storage)": {
+            "label": "mapping(string => struct OmnityPortContract.TokenInfo)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_string_memory_ptr,t_uint128)": {
+            "label": "mapping(string => uint128)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_string_memory_ptr": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_string_storage": {
+            "label": "string",
+            "numberOfBytes": "32"
+          },
+          "t_struct(TokenInfo)2736_storage": {
+            "label": "struct OmnityPortContract.TokenInfo",
+            "members": [
+              {
+                "label": "name",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "symbol",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "decimals",
+                "type": "t_uint8",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "erc20ContractAddr",
+                "type": "t_address",
+                "offset": 1,
+                "slot": "2"
+              },
+              {
+                "label": "settlementChainId",
+                "type": "t_string_storage",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_uint128": {
+            "label": "uint128",
+            "numberOfBytes": "16"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
     }
   }
 }
